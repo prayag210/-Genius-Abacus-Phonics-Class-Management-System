@@ -1,0 +1,688 @@
+// Genius Abacus & Phonics Class Management System
+// PostgreSQL schema via Prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ AUTH & USERS ============
+
+enum Role {
+  ADMIN
+  TEACHER
+}
+
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  email        String?   @unique
+  passwordHash String
+  role         Role      @default(TEACHER)
+  isActive     Boolean   @default(true)
+  teacherId    String?   @unique
+  teacher      Teacher?  @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions      Session[]
+  payments      Payment[]      @relation("RecordedBy")
+  tests         Test[]         @relation("CreatedTests")
+  expenses      Expense[]      @relation("CreatedExpenses")
+  notifications Notification[] @relation("ReceivedNotifications")
+  activityLogs  ActivityLog[]
+
+  @@index([role])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userAgent String?
+  ip        String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ============ PEOPLE ============
+
+model Teacher {
+  id            String   @id @default(cuid())
+  fullName      String
+  photoUrl      String?
+  phone         String?
+  email         String?
+  address       String?
+  branch        String?
+  qualification String?
+  experience    String?
+  bio           String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  users           User[]
+  courses         TeacherCourse[]
+  levels          TeacherLevel[]
+  batches         Batch[]
+  enrollments     Enrollment[]
+  studentLevels   StudentLevel[]
+  markedAttendance Attendance[]   @relation("MarkedBy")
+  testResults     TestResult[]    @relation("ResultBy")
+  skillRatings    SkillRating[]   @relation("RatedBy")
+  homework        Homework[]      @relation("CreatedHomework")
+  notes           TeacherNote[]
+  meetings        ParentMeeting[]
+  certificates    Certificate[]   @relation("IssuedBy")
+  notifications   Notification[]  @relation("CreatedNotifications")
+  calendarEvents  CalendarEvent[] @relation("CreatedEvents")
+
+  @@index([isActive])
+}
+
+model Parent {
+  id           String   @id @default(cuid())
+  name         String
+  phone        String?
+  email        String?
+  address      String?
+  relationship String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  students Student[]
+  meetings ParentMeeting[]
+
+  @@index([name])
+  @@index([phone])
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+  COMPLETED
+  LEFT
+}
+
+model Student {
+  id                     String        @id @default(cuid())
+  fullName               String
+  photoUrl               String?
+  dateOfBirth            DateTime?     @db.Date
+  gender                 String?
+  phone                  String?
+  email                  String?
+  address                String?
+  parentId               String?
+  parent                 Parent?       @relation(fields: [parentId], references: [id], onDelete: SetNull)
+  emergencyContactName   String?
+  emergencyContactPhone  String?
+  admissionDate          DateTime      @default(now()) @db.Date
+  status                 StudentStatus @default(ACTIVE)
+  notes                  String?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  enrollments         Enrollment[]
+  batches             BatchStudent[]
+  attendance          Attendance[]
+  feeRecords          FeeRecord[]
+  payments            Payment[]
+  testResults         TestResult[]
+  skillRatings        SkillRating[]
+  homeworkSubmissions HomeworkSubmission[]
+  certificates        Certificate[]
+  studentLevels       StudentLevel[]
+  teacherNotes        TeacherNote[]
+  meetings            ParentMeeting[]
+
+  @@index([status])
+  @@index([fullName])
+  @@index([parentId])
+}
+
+// ============ ACADEMICS ============
+
+model Course {
+  id                  String   @id @default(cuid())
+  name                String   @unique
+  description         String?
+  isActive            Boolean  @default(true)
+  defaultFeePerLevel  Decimal  @db.Decimal(10, 2)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  levels      Level[]
+  enrollments Enrollment[]
+  batches     Batch[]
+  tests       Test[]
+  homework    Homework[]
+  teachers    TeacherCourse[]
+
+  @@index([isActive])
+}
+
+model Level {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  levelNumber Int
+  name        String
+  description String?
+  duration    String?
+  fee         Decimal  @db.Decimal(10, 2)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  enrollments   Enrollment[]     @relation("EnrollmentCurrentLevel")
+  studentLevels StudentLevel[]
+  feeRecords    FeeRecord[]
+  batches       Batch[]
+  tests         Test[]
+  homework      Homework[]
+  certificates  Certificate[]
+  teachers      TeacherLevel[]
+
+  @@unique([courseId, levelNumber])
+}
+
+model TeacherCourse {
+  teacherId   String
+  teacher     Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  assignedAt  DateTime @default(now())
+
+  @@id([teacherId, courseId])
+  @@index([courseId])
+}
+
+model TeacherLevel {
+  teacherId  String
+  teacher    Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  levelId    String
+  level      Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@id([teacherId, levelId])
+  @@index([levelId])
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  DROPPED
+  ON_HOLD
+}
+
+model Enrollment {
+  id             String           @id @default(cuid())
+  studentId      String
+  student        Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId       String
+  course         Course           @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  currentLevelId String?
+  currentLevel   Level?           @relation("EnrollmentCurrentLevel", fields: [currentLevelId], references: [id], onDelete: SetNull)
+  teacherId      String?
+  teacher        Teacher?         @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  batchId        String?
+  batch          Batch?           @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  startDate      DateTime         @default(now()) @db.Date
+  status         EnrollmentStatus @default(ACTIVE)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  studentLevels StudentLevel[]
+  feeRecords    FeeRecord[]
+  payments      Payment[]
+  certificates  Certificate[]
+  skillRatings  SkillRating[]
+
+  @@unique([studentId, courseId])
+  @@index([teacherId])
+  @@index([status])
+}
+
+enum StudentLevelStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model StudentLevel {
+  id           String            @id @default(cuid())
+  enrollmentId String
+  enrollment   Enrollment        @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  levelId      String
+  level        Level             @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  status       StudentLevelStatus @default(IN_PROGRESS)
+  startedAt    DateTime          @default(now())
+  completedAt  DateTime?
+  result       String?
+  teacherId    String?
+  teacher      Teacher?          @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([enrollmentId, levelId])
+  @@index([studentId])
+}
+
+// ============ BATCHES & ATTENDANCE ============
+
+model Batch {
+  id          String   @id @default(cuid())
+  name        String
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  levelId     String?
+  level       Level?   @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  teacherId   String?
+  teacher     Teacher? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  days        String   @default("Mon,Wed,Fri")
+  startTime   String   @default("16:00")
+  endTime     String   @default("17:00")
+  room        String?
+  maxStudents Int      @default(20)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  students       BatchStudent[]
+  enrollments    Enrollment[]
+  attendance     Attendance[]
+  homework       Homework[]
+  calendarEvents CalendarEvent[]
+  tests          Test[]
+
+  @@index([courseId])
+  @@index([teacherId])
+}
+
+model BatchStudent {
+  batchId   String
+  batch     Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  addedAt   DateTime @default(now())
+
+  @@id([batchId, studentId])
+  @@index([studentId])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+model Attendance {
+  id         String           @id @default(cuid())
+  batchId    String
+  batch      Batch            @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  date       DateTime         @db.Date
+  status     AttendanceStatus
+  remarks    String?
+  markedById String?
+  markedBy   Teacher?         @relation("MarkedBy", fields: [markedById], references: [id], onDelete: SetNull)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([batchId, studentId, date])
+  @@index([date])
+  @@index([studentId])
+}
+
+// ============ FEES & PAYMENTS ============
+
+enum FeeStatus {
+  PAID
+  PARTIALLY_PAID
+  PENDING
+  OVERDUE
+}
+
+model FeeRecord {
+  id           String    @id @default(cuid())
+  studentId    String
+  student      Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  enrollmentId String
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  levelId      String
+  level        Level     @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  totalFee     Decimal   @db.Decimal(10, 2)
+  paidAmount   Decimal   @default(0) @db.Decimal(10, 2)
+  dueDate      DateTime? @db.Date
+  status       FeeStatus @default(PENDING)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  payments Payment[]
+
+  @@unique([enrollmentId, levelId])
+  @@index([status])
+  @@index([studentId])
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  BANK_TRANSFER
+  OTHER
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  receiptNumber  String        @unique
+  studentId      String
+  student        Student       @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  enrollmentId   String
+  enrollment     Enrollment    @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  feeRecordId    String?
+  feeRecord      FeeRecord?    @relation(fields: [feeRecordId], references: [id], onDelete: SetNull)
+  amount         Decimal       @db.Decimal(10, 2)
+  paymentDate    DateTime      @db.Date
+  method         PaymentMethod
+  transactionRef String?
+  notes          String?
+  recordedById   String?
+  recordedBy     User?         @relation("RecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([paymentDate])
+  @@index([studentId])
+  @@index([enrollmentId])
+}
+
+// ============ TESTS & RESULTS ============
+
+model Test {
+  id           String   @id @default(cuid())
+  name         String
+  courseId     String
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  levelId      String?
+  level        Level?   @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  batchId      String?
+  batch        Batch?   @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  date         DateTime @db.Date
+  totalMarks   Int
+  passingMarks Int
+  createdById  String?
+  createdBy    User?    @relation("CreatedTests", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  results TestResult[]
+
+  @@index([courseId])
+  @@index([date])
+}
+
+model TestResult {
+  id         String   @id @default(cuid())
+  testId     String
+  test       Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  marks      Decimal @db.Decimal(6, 2)
+  percentage Decimal @db.Decimal(5, 2)
+  passed     Boolean
+  comment    String?
+  teacherId  String?
+  teacher    Teacher? @relation("ResultBy", fields: [teacherId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([testId, studentId])
+  @@index([studentId])
+}
+
+// ============ PROGRESS / SKILLS ============
+
+model SkillRating {
+  id           String   @id @default(cuid())
+  studentId    String
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  enrollmentId String?
+  enrollment   Enrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+  skillName    String
+  rating       Int
+  notes        String?
+  ratedById    String?
+  ratedBy      Teacher? @relation("RatedBy", fields: [ratedById], references: [id], onDelete: SetNull)
+  date         DateTime @db.Date
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([studentId, skillName])
+  @@index([date])
+}
+
+// ============ HOMEWORK ============
+
+model Homework {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  courseId    String?
+  course      Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  levelId     String?
+  level       Level?   @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  batchId     String?
+  batch       Batch?   @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  dueDate     DateTime @db.Date
+  createdById String?
+  createdBy   Teacher? @relation("CreatedHomework", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  submissions HomeworkSubmission[]
+
+  @@index([dueDate])
+}
+
+enum HomeworkSubmissionStatus {
+  PENDING
+  SUBMITTED
+  REVIEWED
+}
+
+model HomeworkSubmission {
+  id          String                 @id @default(cuid())
+  homeworkId  String
+  homework    Homework               @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     Student                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status      HomeworkSubmissionStatus @default(PENDING)
+  submittedAt DateTime?
+  reviewedAt  DateTime?
+  remarks     String?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  @@unique([homeworkId, studentId])
+  @@index([studentId])
+}
+
+// ============ CERTIFICATES ============
+
+model Certificate {
+  id           String   @id @default(cuid())
+  serialNumber String   @unique
+  studentId    String
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  enrollmentId String?
+  enrollment   Enrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+  levelId      String?
+  level        Level?   @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  type         String
+  title        String
+  issueDate    DateTime @db.Date
+  notes        String?
+  issuedById   String?
+  issuedBy     Teacher? @relation("IssuedBy", fields: [issuedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([studentId])
+}
+
+// ============ CALENDAR ============
+
+enum CalendarEventType {
+  CLASS
+  TEST
+  EVENT
+  HOLIDAY
+  MEETING
+}
+
+model CalendarEvent {
+  id          String            @id @default(cuid())
+  title       String
+  description String?
+  type        CalendarEventType
+  date        DateTime          @db.Date
+  endDate     DateTime?         @db.Date
+  startTime   String?
+  endTime     String?
+  batchId     String?
+  batch       Batch?            @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  createdById String?
+  createdBy   Teacher?          @relation("CreatedEvents", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([date])
+}
+
+model Holiday {
+  id          String   @id @default(cuid())
+  name        String
+  date        DateTime @db.Date
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([name, date])
+}
+
+// ============ EXPENSES ============
+
+model Expense {
+  id          String         @id @default(cuid())
+  title       String
+  category    String
+  amount      Decimal        @db.Decimal(10, 2)
+  date        DateTime       @db.Date
+  method      PaymentMethod  @default(CASH)
+  notes       String?
+  createdById String?
+  createdBy   User?          @relation("CreatedExpenses", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([date])
+  @@index([category])
+}
+
+// ============ COMMUNICATION ============
+
+model Notification {
+  id          String   @id @default(cuid())
+  title       String
+  message     String
+  type        String   @default("INFO")
+  userId      String?
+  user        User?    @relation("ReceivedNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  role        Role?
+  isRead      Boolean  @default(false)
+  createdById String?
+  createdBy   Teacher? @relation("CreatedNotifications", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+model TeacherNote {
+  id        String   @id @default(cuid())
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  note      String
+  date      DateTime @db.Date
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+}
+
+model ParentMeeting {
+  id          String    @id @default(cuid())
+  parentId    String
+  parent      Parent    @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  studentId   String?
+  student     Student?  @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  teacherId   String?
+  teacher     Teacher?  @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  scheduledAt DateTime
+  status      String    @default("SCHEDULED")
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([scheduledAt])
+}
+
+// ============ SYSTEM ============
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userName  String?
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entity])
+}
+
+model Settings {
+  id                String   @id @default("main")
+  instituteName     String   @default("Genius Abacus & Phonics Class")
+  logo              String?
+  phone             String?
+  email             String?
+  address           String?
+  whatsapp          String?
+  website           String?
+  defaultFee        Decimal  @default(4000) @db.Decimal(10, 2)
+  paymentMethods    String[] @default(["Cash", "UPI", "Bank Transfer", "Other"])
+  passingPercentage Decimal  @default(40) @db.Decimal(5, 2)
+  skills            String[] @default(["Number Recognition", "Basic Addition", "Basic Subtraction", "Mental Calculation", "Visualization", "Multiplication", "Division", "Speed Calculation", "Accuracy", "Concentration", "Listening", "Finger Movement", "Flash Cards", "Oral Practice"])
+  updatedAt         DateTime @updatedAt
+}
