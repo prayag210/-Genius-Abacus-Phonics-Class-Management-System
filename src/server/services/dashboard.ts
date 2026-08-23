@@ -271,11 +271,14 @@ export type TeacherDashboardData = {
 }
 
 export async function getTeacherDashboard(teacherId: string): Promise<TeacherDashboardData> {
-  const today = new Date()
-  const todayDow = parseInt(
-    new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', weekday: 'numeric' })
-      .format(today)
-  )
+  // Day-of-week (0=Sun) in Asia/Kolkata
+  const istDateStr = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+  const todayDow = new Date(`${istDateStr}T00:00:00.000Z`).getUTCDay()
 
   const [myEnrollments, myCourses, myBatches, feeRecords, attendanceAgg, recentRatings, recentResults] =
     await Promise.all([

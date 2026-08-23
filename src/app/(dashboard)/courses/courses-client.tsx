@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zResolver } from '@/lib/validations/resolver'
 import { toast } from 'sonner'
 import { BookOpen, ChevronDown, Layers, Plus, Trash2 } from 'lucide-react'
 
@@ -293,7 +293,7 @@ function CourseFormDialog({
   const [submitting, setSubmitting] = useState(false)
 
   const form = useForm<CourseCreateInput>({
-    resolver: zodResolver(courseCreateSchema),
+    resolver: zResolver(courseCreateSchema),
     values: course
       ? {
           name: course.name,
@@ -339,6 +339,7 @@ function CourseFormDialog({
       onSubmit={form.handleSubmit(onSubmit)}
       submitting={submitting}
     >
+      <Form {...form}>
       <div className="space-y-4">
         <FormField
           control={form.control}
@@ -380,6 +381,7 @@ function CourseFormDialog({
           )}
         />
       </div>
+    </Form>
     </FormDialog>
   )
 }
@@ -408,7 +410,7 @@ function LevelFormDialog({
     duration: string | null
     fee: number
   }>({
-    resolver: zodResolver(levelCreateSchema.omit({ courseId: true })),
+    resolver: zResolver(levelCreateSchema.omit({ courseId: true })),
     values: {
       levelNumber: level?.levelNumber ?? (course?.levels.length ?? 0) + 1,
       name: level?.name ?? '',
@@ -454,6 +456,7 @@ function LevelFormDialog({
       onSubmit={form.handleSubmit(onSubmit)}
       submitting={submitting}
     >
+      <Form {...form}>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <FormField
@@ -523,6 +526,7 @@ function LevelFormDialog({
           )}
         />
       </div>
+    </Form>
     </FormDialog>
   )
 }

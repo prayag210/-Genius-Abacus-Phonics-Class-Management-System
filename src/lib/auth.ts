@@ -128,14 +128,14 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   }
   if (!session.user.isActive) return null
 
-  const u: User & { teacher: { id: string; fullName: string; branch: string } | null } = session.user
+  const u = session.user
   return {
     id: u.id,
     username: u.username,
     email: u.email,
     role: u.role,
     isActive: u.isActive,
-    teacher: u.teacher,
+    teacher: u.teacher ?? null,
   }
 }
 

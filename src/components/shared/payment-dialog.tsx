@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zResolver } from '@/lib/validations/resolver'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { IndianRupee } from 'lucide-react'
@@ -59,7 +59,7 @@ export function PaymentDialog({
   const remaining = fee ? fee.totalFee - fee.paidAmount : 0
 
   const form = useForm<PaymentFormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zResolver(formSchema),
     values: fee
       ? {
           feeRecordId: fee.id,
@@ -108,7 +108,8 @@ export function PaymentDialog({
       submitting={submitting}
       submitLabel="Record Payment"
     >
-      <div className="space-y-4">
+      <Form {...form}>
+        <div className="space-y-4">
         <div className="grid grid-cols-3 gap-3 rounded-lg border border-border bg-muted/40 p-3 text-center">
           <div>
             <p className="text-[11px] uppercase text-muted-foreground">Total Fee</p>
@@ -221,6 +222,7 @@ export function PaymentDialog({
           )}
         />
       </div>
+      </Form>
     </FormDialog>
   )
 }

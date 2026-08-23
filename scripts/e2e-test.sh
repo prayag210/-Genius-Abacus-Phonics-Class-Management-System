@@ -147,7 +147,7 @@ for l in data['ladder']:
         print(l['result'] or ''); break
 ")
 check "Level 1 COMPLETED in history" "[ '$L1_STATUS' = 'COMPLETED' ]"
-check "Level 1 result preserved" "$(echo '$L1_RESULT' | rg -q 'Passed with distinction' && echo true)"
+check "Level 1 result preserved" "echo \"$L1_RESULT\" | rg -q 'Passed with distinction'"
 
 echo "=== 11. Verify new fee record for Level 2 (₹4,000) ==="
 NEW_FEES=$(curl -s -b $COOKIES "$BASE/api/fees")
@@ -156,7 +156,7 @@ import sys,json
 data = json.load(sys.stdin)
 count = 0
 for f in data['fees']:
-    if f['studentId']=='$STUDENT_ID' and f['levelName']=='Level 2':
+    if f['studentId']=='$STUDENT_ID' and f['level']['name']=='Level 2':
         count += 1
 print(count)
 ")

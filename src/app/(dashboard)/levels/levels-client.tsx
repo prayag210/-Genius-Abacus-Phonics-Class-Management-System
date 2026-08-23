@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zResolver } from '@/lib/validations/resolver'
 import { toast } from 'sonner'
 import { Layers, Trash2 } from 'lucide-react'
 
@@ -237,7 +237,7 @@ function EditLevelDialog({
     duration: string | null
     fee: number
   }>({
-    resolver: zodResolver(levelUpdateSchema.omit({ courseId: true })),
+    resolver: zResolver(levelUpdateSchema),
     values: level
       ? {
           levelNumber: level.levelNumber,
@@ -286,6 +286,7 @@ function EditLevelDialog({
       onSubmit={form.handleSubmit(onSubmit)}
       submitting={submitting}
     >
+      <Form {...form}>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <FormField
@@ -355,6 +356,7 @@ function EditLevelDialog({
           )}
         />
       </div>
+    </Form>
     </FormDialog>
   )
 }

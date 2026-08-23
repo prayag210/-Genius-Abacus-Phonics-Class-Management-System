@@ -70,7 +70,7 @@ export async function canDeleteCourse(id: string): Promise<{ ok: boolean; reason
 
 export async function deleteCourse(id: string): Promise<void> {
   const safety = await canDeleteCourse(id)
-  if (!safety.ok) throw new ApiError(409, safety.reason)
+  if (!safety.ok) throw new ApiError(409, safety.reason ?? 'This course cannot be deleted safely.')
   await db.course.delete({ where: { id } }) // levels cascade
 }
 

@@ -1,0 +1,34 @@
+# Render Blueprint — Genius Abacus & Phonics Class Management System
+# Docs: https://render.com/docs/blueprint-spec
+
+databases:
+  - name: genius-institute-db
+    databaseName: genius_institute
+    user: genius_admin
+    plan: basic-256mb
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: genius-institute-web
+    runtime: node
+    plan: starter
+    region: singapore
+    buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy && npm run build
+    startCommand: npm run start
+    healthCheckPath: /login
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20.19.0
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: genius-institute-db
+          property: connectionString
+      - key: AUTH_SECRET
+        generateValue: true
+    # Initial data seeding (courses, levels, teacher, admin user).
+    # Uncomment to seed on first deploy; then comment out again.
+    # postDeployCommand: npx prisma db seed

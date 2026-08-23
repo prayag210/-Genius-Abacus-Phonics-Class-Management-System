@@ -96,8 +96,12 @@ export async function createStudent(input: StudentCreateInput): Promise<Student>
     if (!parent) throw new ApiError(422, 'Selected parent does not exist.')
   }
 
+  // admissionDate is non-nullable with a default — omit null so the default applies
+  const { admissionDate, ...rest } = data
+  const createData = admissionDate ? { ...rest, admissionDate } : rest
+
   return db.$transaction(async (tx) => {
-    const student = await tx.student.create({ data })
+    const student = await tx.student.create({ data: createData })
 
     if (initialEnrollment?.courseId) {
       const course = await tx.course.findUnique({
@@ -122,7 +126,6 @@ export async function createStudent(input: StudentCreateInput): Promise<Student>
           courseId: course.id,
           currentLevelId: levelId,
           teacherId: initialEnrollment.teacherId ?? null,
-          batchId: initialEnrollment.batchId ?? null,
           startDate: initialEnrollment.startDate ?? new Date(),
           status: 'ACTIVE',
         },
@@ -167,9 +170,16 @@ export async function updateStudent(id: string, input: Omit<StudentCreateInput, 
     const parent = await db.parent.findUnique({ where: { id: input.parentId } })
     if (!parent) throw new ApiError(422, 'Selected parent does not exist.')
   }
+
+  const { admissionDate, ...rest } = input
+  const data: Record<string, unknown> = { ...rest, parentId: input.parentId ?? null }
+  // admissionDate is required — keep the existing value when not provided
+  if (admissionDate) data.admissionDate = admissionDate
+  else if (existing.admissionDate) data.admissionDate = existing.admissionDate
+
   return db.student.update({
     where: { id },
-    data: { ...input, parentId: input.parentId ?? null },
+    data: data as never,
   })
 }
 

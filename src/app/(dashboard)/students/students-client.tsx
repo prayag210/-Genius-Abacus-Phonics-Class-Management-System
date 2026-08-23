@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zResolver } from '@/lib/validations/resolver'
 import { toast } from 'sonner'
 import { GraduationCap, Plus, Search, X } from 'lucide-react'
 
@@ -352,7 +352,7 @@ function CreateStudentDialog({
   const [selectedCourseId, setSelectedCourseId] = useState('')
 
   const form = useForm<StudentCreateInput>({
-    resolver: zodResolver(studentCreateSchema),
+    resolver: zResolver(studentCreateSchema),
     defaultValues: {
       fullName: '',
       dateOfBirth: null,
@@ -416,6 +416,7 @@ function CreateStudentDialog({
       submitting={submitting}
       wide
     >
+      <Form {...form}>
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField
           control={form.control}
@@ -687,6 +688,7 @@ function CreateStudentDialog({
           )}
         </div>
       </div>
+    </Form>
     </FormDialog>
   )
 }
@@ -707,7 +709,7 @@ function EditStudentDialog({
   const [submitting, setSubmitting] = useState(false)
 
   const form = useForm<StudentCreateInput>({
-    resolver: zodResolver(studentUpdateSchema),
+    resolver: zResolver(studentUpdateSchema),
     values: student
       ? {
           fullName: student.fullName,
@@ -759,6 +761,7 @@ function EditStudentDialog({
       submitting={submitting}
       wide
     >
+      <Form {...form}>
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField
           control={form.control}
@@ -952,6 +955,7 @@ function EditStudentDialog({
           )}
         />
       </div>
+    </Form>
     </FormDialog>
   )
 }

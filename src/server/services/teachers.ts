@@ -136,7 +136,7 @@ export async function canDeleteTeacher(id: string): Promise<{ ok: boolean; reaso
 export async function deleteTeacher(id: string): Promise<void> {
   const safety = await canDeleteTeacher(id)
   if (!safety.ok) {
-    throw new ApiError(409, safety.reason)
+    throw new ApiError(409, safety.reason ?? 'This teacher cannot be deleted safely.')
   }
   await db.$transaction(async (tx) => {
     // teacher course/level assignments cascade; user account is detached

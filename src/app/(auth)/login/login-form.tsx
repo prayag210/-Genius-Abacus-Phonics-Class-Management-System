@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zResolver } from '@/lib/validations/resolver'
 import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -33,7 +33,7 @@ export function LoginForm({ instituteName }: { instituteName: string }) {
   const [submitting, setSubmitting] = useState(false)
 
   const form = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
+    resolver: zResolver(loginSchema),
     defaultValues: { username: '', password: '' },
   })
 

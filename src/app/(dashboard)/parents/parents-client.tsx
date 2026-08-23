@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zResolver } from '@/lib/validations/resolver'
 import { toast } from 'sonner'
 import { Plus, Search, Users, X } from 'lucide-react'
 
@@ -247,7 +247,7 @@ function ParentFormDialog({
   const [submitting, setSubmitting] = useState(false)
 
   const form = useForm<ParentCreateInput>({
-    resolver: zodResolver(parentCreateSchema),
+    resolver: zResolver(parentCreateSchema),
     values: parent
       ? {
           name: parent.name,
@@ -289,6 +289,7 @@ function ParentFormDialog({
       onSubmit={form.handleSubmit(onSubmit)}
       submitting={submitting}
     >
+      <Form {...form}>
       <div className="space-y-4">
         <FormField
           control={form.control}
@@ -371,6 +372,7 @@ function ParentFormDialog({
           )}
         />
       </div>
+    </Form>
     </FormDialog>
   )
 }

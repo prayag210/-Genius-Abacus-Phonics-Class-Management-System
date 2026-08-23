@@ -64,7 +64,7 @@ export const PATCH = withAuth<Record<string, string>>(
 export const DELETE = withAuth<Record<string, string>>(
   async (_req, { params, user }) => {
     const safety = await canDeleteTeacher(params.id)
-    if (!safety.ok) throw new ApiError(409, safety.reason)
+    if (!safety.ok) throw new ApiError(409, safety.reason ?? 'This teacher cannot be deleted safely.')
     await deleteTeacher(params.id)
     await logActivity({
       userId: user.id,

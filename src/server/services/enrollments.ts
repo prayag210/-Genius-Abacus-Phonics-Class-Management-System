@@ -275,7 +275,7 @@ export async function completeLevel(input: {
           teacherId: input.teacherId ?? currentHistory.teacherId,
         },
       })
-    } else {
+    } else if (enrollment.currentLevelId) {
       await tx.studentLevel.create({
         data: {
           enrollmentId: enrollment.id,

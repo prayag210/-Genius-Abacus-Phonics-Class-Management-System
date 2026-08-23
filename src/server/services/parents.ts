@@ -3,7 +3,7 @@
  */
 import { db } from '@/lib/db'
 import { ApiError } from '@/lib/api'
-import type { Prisma } from '@prisma/client'
+import type { Prisma, Parent } from '@prisma/client'
 import type { ParentCreateInput } from '@/lib/validations/student'
 
 const parentInclude = {

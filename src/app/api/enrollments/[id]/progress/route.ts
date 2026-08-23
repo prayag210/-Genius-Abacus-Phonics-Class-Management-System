@@ -1,7 +1,11 @@
 import { withAuth, parseBody, ok, handleDbError } from '@/lib/api'
+import { z } from 'zod'
 import { progressionSchema } from '@/lib/validations/enrollment'
 import { completeLevel, getLevelLadder } from '@/server/services/enrollments'
 import { logActivity } from '@/server/services/activity'
+
+/** Body schema — enrollmentId comes from the URL, not the body. */
+const bodySchema = progressionSchema.omit({ enrollmentId: true })
 
 /** Level ladder for an enrollment (history view). */
 export const GET = withAuth<Record<string, string>>(
@@ -15,7 +19,7 @@ export const GET = withAuth<Record<string, string>>(
 /** Complete the current level and move to the next one. */
 export const POST = withAuth<Record<string, string>>(
   async (req, { params, user }) => {
-    const input = await parseBody(req, progressionSchema)
+    const input = await parseBody(req, bodySchema)
     try {
       const result = await completeLevel({
         enrollmentId: params.id,

@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zResolver } from '@/lib/validations/resolver'
 import { toast } from 'sonner'
 import { Plus, Search, UserCog, Users, X } from 'lucide-react'
 
@@ -380,7 +380,7 @@ function CreateTeacherDialog({
   const [createLogin, setCreateLogin] = useState(false)
 
   const form = useForm<TeacherCreateInput>({
-    resolver: zodResolver(teacherCreateSchema),
+    resolver: zResolver(teacherCreateSchema),
     defaultValues: {
       fullName: '',
       phone: '',
@@ -430,6 +430,7 @@ function CreateTeacherDialog({
       submitting={submitting}
       wide
     >
+      <Form {...form}>
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField
           control={form.control}
@@ -579,6 +580,7 @@ function CreateTeacherDialog({
           )}
         </div>
       </div>
+    </Form>
     </FormDialog>
   )
 }
@@ -597,7 +599,7 @@ function EditTeacherDialog({
   const [submitting, setSubmitting] = useState(false)
 
   const form = useForm<TeacherUpdateInput>({
-    resolver: zodResolver(teacherUpdateSchema),
+    resolver: zResolver(teacherUpdateSchema),
     values: teacher
       ? {
           fullName: teacher.fullName,
@@ -644,6 +646,7 @@ function EditTeacherDialog({
       submitting={submitting}
       wide
     >
+      <Form {...form}>
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField
           control={form.control}
@@ -750,6 +753,7 @@ function EditTeacherDialog({
           )}
         />
       </div>
+    </Form>
     </FormDialog>
   )
 }

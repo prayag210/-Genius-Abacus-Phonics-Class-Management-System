@@ -3,6 +3,7 @@ import { testResultSchema } from '@/lib/validations/test'
 import { getTest, saveTestResults } from '@/server/services/tests'
 import { teacherCanAccessStudent } from '@/server/services/students'
 import { logActivity } from '@/server/services/activity'
+import { db } from '@/lib/db'
 
 export const POST = withAuth<Record<string, string>>(
   async (req, { params, user }) => {
@@ -33,6 +34,35 @@ export const POST = withAuth<Record<string, string>>(
         details: `${result.saved} result(s) for ${test.name}`,
       })
       return ok(result)
+    } catch (err) {
+      return handleDbError(err)
+    }
+  },
+  { action: 'results:manage' }
+)
+
+/** Remove a single student's result. */
+export const DELETE = withAuth<Record<string, string>>(
+  async (req, { params, user }) => {
+    const studentId = new URL(req.url).searchParams.get('studentId')
+    if (!studentId) throw new ApiError(422, 'studentId query parameter is required.')
+
+    const test = await getTest(params.id)
+    if (!test) throw new ApiError(404, 'Test not found.')
+
+    try {
+      await db.testResult.delete({
+        where: { testId_studentId: { testId: params.id, studentId } },
+      })
+      await logActivity({
+        userId: user.id,
+        userName: user.username,
+        action: 'RESULT_DELETE',
+        entity: 'Test',
+        entityId: params.id,
+        details: studentId,
+      })
+      return ok({ ok: true })
     } catch (err) {
       return handleDbError(err)
     }
