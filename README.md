@@ -110,6 +110,12 @@ The repository includes `render.yaml` (Render Blueprint) and is designed for Ren
    - **PostgreSQL** `genius-institute-db` (free/basic plan)
    - **Web Service** `genius-institute-web` with build command `npm ci && npx prisma generate && npx prisma migrate deploy && npm run build` and start command `npm run start`
 4. `DATABASE_URL` is wired automatically from the database; `AUTH_SECRET` is generated automatically.
+5. **Seed initial data (first deploy only).** The build applies migrations but does not create the login accounts. After the first successful deploy, open the web service's **Shell** tab and run:
+   ```bash
+   npx prisma db seed
+   ```
+   (Or temporarily uncomment `postDeployCommand: npx prisma db seed` in `render.yaml`, deploy once, then comment it out again.) This creates the courses, 18 levels, teacher **Jalpa P. Patel**, and the `admin` / `jalpa` logins.
+6. Open the service URL, sign in with `admin` / `Admin@123`, and **change the password immediately**.
 
 ### Option B — Manual setup
 
@@ -225,6 +231,53 @@ prisma/
 - Prisma parameterised queries prevent SQL injection; React escaping prevents XSS.
 - IDs from the browser are never trusted — ownership is re-verified server-side.
 - `robots: noindex` on all pages; no secrets in the client bundle.
+
+## Secrets & git hygiene
+
+**Never commit `.env` or real secrets.** `.env` is listed in `.gitignore`, but if it was committed before that rule was added it will still be tracked. Check and untrack it:
+
+```bash
+git ls-files --error-unmatch .env   # if this prints ".env", it is tracked
+git rm --cached .env                # stop tracking (keeps your local file)
+git commit -m "chore: stop tracking .env"
+```
+
+If a real database password or `AUTH_SECRET` was ever committed, **rotate it** after untracking — rotate the database credentials and regenerate `AUTH_SECRET` (`openssl rand -hex 32`). On Render, `AUTH_SECRET` is generated automatically and `DATABASE_URL` is injected from the managed database, so production never reads a committed `.env`.
+
+Use `.env.example` (committed, no real values) as the template: `cp .env.example .env`.
+
+Some scaffold artifacts may also be tracked from the project's original template (e.g. a local `*.db` file, `bun.lock`, helper scripts). They are gitignored now but, if previously committed, untrack them the same way:
+
+```bash
+git rm --cached -r db bun.lock .zscripts 2>/dev/null; git commit -m "chore: remove scaffold artifacts from tracking"
+```
+
+## Troubleshooting
+
+### "Drift detected" or `The table 'public.Settings' does not exist`
+
+These are **local development** symptoms of a database whose contents no longer match the committed migration history — typically because `prisma db push` (or a partial/old schema) was used against the local database at some point. The committed migration in `prisma/migrations/` **does** create every table (including `Settings`) plus all enums, indexes, foreign keys and the receipt/certificate PostgreSQL sequences, so a clean deploy is unaffected.
+
+Fix the **local** database (safe — this destroys only local dev data, never production):
+
+```bash
+npx prisma migrate reset      # drops & recreates the LOCAL db from migrations, then reseeds
+# or, to apply committed migrations without reseeding:
+npx prisma migrate deploy
+```
+
+Verify the schema and migration state:
+
+```bash
+npx prisma validate           # schema is valid
+npx prisma migrate status     # migrations are applied, no drift
+```
+
+**In production (Render), never run `migrate reset`, `migrate dev`, or `db push`.** The build runs `prisma migrate deploy`, which only applies committed migrations and never drops data. On a fresh Render database this creates the full schema on the first deploy; the app's `getSettings()` also creates the `Settings` row on demand if it is missing, so the app never crashes on an empty settings table.
+
+### Favicon 404
+
+Fixed: `src/app/icon.svg` (the Genius Abacus brand mark) is served via Next.js's App Router icon convention, which injects the `<link rel="icon">` tag automatically. No configuration is needed.
 
 ## Known limitations
 
