@@ -2,19 +2,24 @@
  * Seed script for Genius Abacus & Phonics Class Management System.
  *
  * Seeds:
- *  - Settings singleton (institute info, skill list, payment methods)
- *  - 3 courses: Junior Abacus (8 levels), Senior Abacus (6 levels), Phonics (4 levels)
- *  - All 18 levels at the standard per-level fee (read from course default)
- *  - Initial teacher: Jalpa P. Patel (assigned all courses + all levels)
- *  - Admin user + teacher login for Jalpa
+ *  - Settings singleton
+ *  - 3 courses: Junior Abacus, Senior Abacus, Phonics
+ *  - All 18 levels
+ *  - Initial teacher: Jalpa P. Patel
+ *  - Admin login
+ *  - Teacher login
  *
- * The seed is idempotent — it is safe to run multiple times.
+ * Admin login:
+ *   Username: prayag
+ *   Password: prayag2011
  *
- * Initial passwords can be controlled with environment variables:
- *   ADMIN_INITIAL_PASSWORD   (default: Admin@123)
- *   TEACHER_INITIAL_PASSWORD (default: Teacher@123)
- * Change both immediately after first login.
+ * Teacher login:
+ *   Username: jalpa
+ *   Password: jalpa1985
+ *
+ * The seed is idempotent and safe to run multiple times.
  */
+
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
@@ -40,17 +45,20 @@ const DEFAULT_SKILLS = [
 const COURSE_DEFS = [
   {
     name: 'Junior Abacus',
-    description: 'Abacus mental arithmetic program for young learners (ages 5-8).',
+    description:
+      'Abacus mental arithmetic program for young learners (ages 5-8).',
     levels: 8,
   },
   {
     name: 'Senior Abacus',
-    description: 'Abacus mental arithmetic program for older learners (ages 9-14).',
+    description:
+      'Abacus mental arithmetic program for older learners (ages 9-14).',
     levels: 6,
   },
   {
     name: 'Phonics',
-    description: 'Systematic phonics program covering sounds, blending and reading fluency.',
+    description:
+      'Systematic phonics program covering sounds, blending and reading fluency.',
     levels: 4,
   },
 ]
@@ -58,41 +66,84 @@ const COURSE_DEFS = [
 const PER_LEVEL_FEE = 4000
 
 async function main() {
-  console.log('Seeding Genius Abacus & Phonics Class Management System...')
+  console.log(
+    'Seeding Genius Abacus & Phonics Class Management System...'
+  )
 
-  // ---------- Settings ----------
+  // ============================================================
+  // SETTINGS
+  // ============================================================
+
   const settings = await prisma.settings.upsert({
-    where: { id: 'main' },
-    update: {
-      // keep existing values on re-seed, but ensure arrays are populated
-      skills: { set: DEFAULT_SKILLS },
-      paymentMethods: { set: ['Cash', 'UPI', 'Bank Transfer', 'Other'] },
+    where: {
+      id: 'main',
     },
+
+    update: {
+      skills: {
+        set: DEFAULT_SKILLS,
+      },
+
+      paymentMethods: {
+        set: [
+          'Cash',
+          'UPI',
+          'Bank Transfer',
+          'Other',
+        ],
+      },
+    },
+
     create: {
       id: 'main',
-      instituteName: 'Genius Abacus & Phonics Class',
+
+      instituteName:
+        'Genius Abacus & Phonics Class',
+
       phone: null,
       email: null,
       address: null,
+
       defaultFee: PER_LEVEL_FEE,
-      paymentMethods: ['Cash', 'UPI', 'Bank Transfer', 'Other'],
+
+      paymentMethods: [
+        'Cash',
+        'UPI',
+        'Bank Transfer',
+        'Other',
+      ],
+
       passingPercentage: 40,
+
       skills: DEFAULT_SKILLS,
     },
   })
-  console.log(`Settings ensured (institute: ${settings.instituteName})`)
 
-  // ---------- Courses + Levels ----------
+  console.log(
+    `Settings ensured (institute: ${settings.instituteName})`
+  )
+
+  // ============================================================
+  // COURSES + LEVELS
+  // ============================================================
+
   for (const def of COURSE_DEFS) {
     const course = await prisma.course.upsert({
-      where: { name: def.name },
+      where: {
+        name: def.name,
+      },
+
       update: {
         description: def.description,
       },
+
       create: {
         name: def.name,
+
         description: def.description,
+
         defaultFeePerLevel: PER_LEVEL_FEE,
+
         isActive: true,
       },
     })
@@ -105,104 +156,278 @@ async function main() {
             levelNumber: n,
           },
         },
+
         update: {
           name: `Level ${n}`,
+
           fee: course.defaultFeePerLevel,
         },
+
         create: {
           courseId: course.id,
+
           levelNumber: n,
+
           name: `Level ${n}`,
+
           fee: course.defaultFeePerLevel,
+
           isActive: true,
         },
       })
     }
-    console.log(`Course "${def.name}" ensured with ${def.levels} levels`)
+
+    console.log(
+      `Course "${def.name}" ensured with ${def.levels} levels`
+    )
   }
 
-  // ---------- Initial teacher ----------
+  // ============================================================
+  // INITIAL TEACHER
+  // ============================================================
+
   const teacher = await prisma.teacher.upsert({
-    where: { id: 'initial-jalpa' },
+    where: {
+      id: 'initial-jalpa',
+    },
+
     update: {
       fullName: 'Jalpa P. Patel',
-      branch: 'Genius Abacus & Phonics Class — Himatnagar',
+
+      branch:
+        'Genius Abacus & Phonics Class — Himatnagar',
+
       isActive: true,
     },
+
     create: {
       id: 'initial-jalpa',
+
       fullName: 'Jalpa P. Patel',
-      branch: 'Genius Abacus & Phonics Class — Himatnagar',
+
+      branch:
+        'Genius Abacus & Phonics Class — Himatnagar',
+
       isActive: true,
-      // Phone, email, qualification and experience intentionally left empty —
-      // to be filled in by the administrator.
     },
   })
 
-  // Assign all courses + all levels to the initial teacher
+  console.log(
+    `Teacher "${teacher.fullName}" ensured`
+  )
+
+  // ============================================================
+  // ASSIGN ALL COURSES + LEVELS TO TEACHER
+  // ============================================================
+
   const courses = await prisma.course.findMany({
-    include: { levels: true },
+    include: {
+      levels: true,
+    },
   })
+
   for (const course of courses) {
     await prisma.teacherCourse.upsert({
       where: {
-        teacherId_courseId: { teacherId: teacher.id, courseId: course.id },
+        teacherId_courseId: {
+          teacherId: teacher.id,
+
+          courseId: course.id,
+        },
       },
+
       update: {},
-      create: { teacherId: teacher.id, courseId: course.id },
+
+      create: {
+        teacherId: teacher.id,
+
+        courseId: course.id,
+      },
     })
+
     for (const level of course.levels) {
       await prisma.teacherLevel.upsert({
         where: {
-          teacherId_levelId: { teacherId: teacher.id, levelId: level.id },
+          teacherId_levelId: {
+            teacherId: teacher.id,
+
+            levelId: level.id,
+          },
         },
+
         update: {},
-        create: { teacherId: teacher.id, levelId: level.id },
+
+        create: {
+          teacherId: teacher.id,
+
+          levelId: level.id,
+        },
       })
     }
   }
-  console.log(`Teacher "${teacher.fullName}" ensured and assigned all courses/levels`)
 
-  // ---------- Users ----------
-  const adminPassword = process.env.ADMIN_INITIAL_PASSWORD || 'Admin@123'
-  const teacherPassword = process.env.TEACHER_INITIAL_PASSWORD || 'Teacher@123'
+  console.log(
+    `Teacher "${teacher.fullName}" assigned to all courses and levels`
+  )
+
+  // ============================================================
+  // LOGIN CREDENTIALS
+  // ============================================================
+
+  const ADMIN_USERNAME = 'prayag'
+  const ADMIN_PASSWORD = 'prayag2011'
+
+  const TEACHER_USERNAME = 'jalpa'
+  const TEACHER_PASSWORD = 'jalpa1985'
+
+  // Hash passwords
+  const adminPasswordHash =
+    await bcrypt.hash(ADMIN_PASSWORD, 12)
+
+  const teacherPasswordHash =
+    await bcrypt.hash(TEACHER_PASSWORD, 12)
+
+  // ============================================================
+  // ADMIN USER
+  // ============================================================
 
   await prisma.user.upsert({
-    where: { username: 'admin' },
-    update: {},
-    create: {
-      username: 'admin',
-      email: null,
-      passwordHash: await bcrypt.hash(adminPassword, 12),
-      role: 'ADMIN',
-      isActive: true,
+    where: {
+      username: ADMIN_USERNAME,
     },
-  })
-  console.log('Admin user ensured (username: admin)')
 
-  await prisma.user.upsert({
-    where: { username: 'jalpa' },
     update: {
-      teacherId: teacher.id,
-    },
-    create: {
-      username: 'jalpa',
-      email: null,
-      passwordHash: await bcrypt.hash(teacherPassword, 12),
-      role: 'TEACHER',
+      passwordHash: adminPasswordHash,
+
+      role: 'ADMIN',
+
       isActive: true,
-      teacherId: teacher.id,
+
+      teacherId: null,
+    },
+
+    create: {
+      username: ADMIN_USERNAME,
+
+      email: null,
+
+      passwordHash: adminPasswordHash,
+
+      role: 'ADMIN',
+
+      isActive: true,
+
+      teacherId: null,
     },
   })
-  console.log('Teacher login ensured (username: jalpa)')
 
-  console.log('Seed completed successfully.')
-  console.log('IMPORTANT: change the default passwords immediately after first login.')
+  console.log(
+    `Admin user ensured (username: ${ADMIN_USERNAME})`
+  )
+
+  // ============================================================
+  // TEACHER USER
+  // ============================================================
+
+  /*
+   * teacherId is unique in the database.
+   *
+   * Therefore, first find whether a user is already connected
+   * to this teacher.
+   */
+
+  const existingTeacherUser =
+    await prisma.user.findFirst({
+      where: {
+        OR: [
+          {
+            username: TEACHER_USERNAME,
+          },
+
+          {
+            teacherId: teacher.id,
+          },
+        ],
+      },
+    })
+
+  if (existingTeacherUser) {
+    await prisma.user.update({
+      where: {
+        id: existingTeacherUser.id,
+      },
+
+      data: {
+        username: TEACHER_USERNAME,
+
+        passwordHash: teacherPasswordHash,
+
+        role: 'TEACHER',
+
+        isActive: true,
+
+        teacherId: teacher.id,
+      },
+    })
+
+    console.log(
+      `Existing teacher user updated (username: ${TEACHER_USERNAME})`
+    )
+  } else {
+    await prisma.user.create({
+      data: {
+        username: TEACHER_USERNAME,
+
+        email: null,
+
+        passwordHash: teacherPasswordHash,
+
+        role: 'TEACHER',
+
+        isActive: true,
+
+        teacherId: teacher.id,
+      },
+    })
+
+    console.log(
+      `Teacher user created (username: ${TEACHER_USERNAME})`
+    )
+  }
+
+  // ============================================================
+  // COMPLETION
+  // ============================================================
+
+  console.log('')
+  console.log('==========================================')
+  console.log('SEED COMPLETED SUCCESSFULLY')
+  console.log('==========================================')
+
+  console.log(
+    `Admin username:   ${ADMIN_USERNAME}`
+  )
+
+  console.log(
+    `Admin password:   ${ADMIN_PASSWORD}`
+  )
+
+  console.log(
+    `Teacher username: ${TEACHER_USERNAME}`
+  )
+
+  console.log(
+    `Teacher password: ${TEACHER_PASSWORD}`
+  )
+
+  console.log('==========================================')
 }
 
 main()
-  .catch((e) => {
-    console.error(e)
+  .catch((error) => {
+    console.error('Seed failed:')
+    console.error(error)
+
     process.exit(1)
   })
   .finally(async () => {
